@@ -1,0 +1,169 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "An ethnic wear product in the Kumar Saree Ghar catalogue.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 160, "pattern": "^[a-z0-9-]+$" },
+        "category": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 3000 },
+        "fabric": { "type": "string", "maxLength": 200 },
+        "workDetails": { "type": "string", "maxLength": 400 },
+        "color": { "type": "string", "maxLength": 100 },
+        "sizes": { "type": "array", "description": "Available sizes if applicable" },
+        "price": { "type": "number", "description": "Verified INR price or 0 if unverified" },
+        "priceVerified": { "type": "boolean" },
+        "availability": {
+          "type": "string",
+          "enum": ["In Store", "Made to Order", "Enquire for Availability", "Out of Stock"]
+        },
+        "images": { "type": "array", "description": "Product image paths or URLs" },
+        "featured": { "type": "boolean" },
+        "displayOrder": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "slug", "category", "description", "priceVerified", "availability", "images", "featured", "displayOrder", "createdAt", "updatedAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "A featured ethnic wear collection category.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 80, "pattern": "^[a-z0-9-]+$" },
+        "description": { "type": "string", "maxLength": 600 },
+        "coverImage": { "type": "string", "maxLength": 600 },
+        "featured": { "type": "boolean" },
+        "displayOrder": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "slug", "description", "coverImage", "featured", "displayOrder", "createdAt", "updatedAt"]
+    },
+    "GalleryItem": {
+      "title": "GalleryItem",
+      "description": "An editorial image in the Kumar Saree Ghar fashion gallery.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "category": { "type": "string", "maxLength": 80 },
+        "imageUrl": { "type": "string", "maxLength": 600 },
+        "caption": { "type": "string", "maxLength": 400 },
+        "aspect": { "type": "string", "enum": ["portrait", "landscape", "square"] },
+        "displayOrder": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "category", "imageUrl", "caption", "aspect", "displayOrder", "createdAt", "updatedAt"]
+    },
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Editable storefront configuration, contact info, banners, and verification flags.",
+      "type": "object",
+      "properties": {
+        "businessName": { "type": "string", "maxLength": 120 },
+        "tagline": { "type": "string", "maxLength": 240 },
+        "heroHeadline": { "type": "string", "maxLength": 160 },
+        "heroSubtext": { "type": "string", "maxLength": 500 },
+        "heroImage": { "type": "string", "maxLength": 600 },
+        "bridalBannerTitle": { "type": "string", "maxLength": 160 },
+        "bridalBannerText": { "type": "string", "maxLength": 600 },
+        "bridalBannerImage": { "type": "string", "maxLength": 600 },
+        "address": { "type": "string", "maxLength": 300 },
+        "primaryPhone": { "type": "string", "maxLength": 30 },
+        "altPhone": { "type": "string", "maxLength": 40 },
+        "altPhoneVerified": { "type": "boolean" },
+        "whatsappNumber": { "type": "string", "maxLength": 30 },
+        "whatsappConfirmed": { "type": "boolean" },
+        "email": { "type": "string", "maxLength": 120 },
+        "websiteUrl": { "type": "string", "maxLength": 200 },
+        "openingHours": { "type": "string", "maxLength": 200 },
+        "openingHoursVerified": { "type": "boolean" },
+        "establishmentYear": { "type": "string", "maxLength": 20 },
+        "establishmentYearVerified": { "type": "boolean" },
+        "googleReviewsUrl": { "type": "string", "maxLength": 400 },
+        "instagramUrl": { "type": "string", "maxLength": 400 },
+        "facebookUrl": { "type": "string", "maxLength": 400 },
+        "policiesNote": { "type": "string", "maxLength": 600 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["businessName", "heroHeadline", "address", "primaryPhone", "whatsappNumber", "whatsappConfirmed", "email", "openingHours", "openingHoursVerified", "establishmentYearVerified", "updatedAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A genuine verified customer review added by the business administrator.",
+      "type": "object",
+      "properties": {
+        "reviewerName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "occasion": { "type": "string", "maxLength": 100 },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "minLength": 5, "maxLength": 1000 },
+        "verifiedSource": { "type": "string", "maxLength": 120 },
+        "published": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reviewerName", "rating", "comment", "verifiedSource", "published", "createdAt"]
+    },
+    "Enquiry": {
+      "title": "Enquiry",
+      "description": "A customer enquiry submitted from the storefront or product page.",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "phone": { "type": "string", "minLength": 7, "maxLength": 25 },
+        "email": { "type": "string", "maxLength": 140 },
+        "productOrCategory": { "type": "string", "maxLength": 180 },
+        "message": { "type": "string", "minLength": 5, "maxLength": 2000 },
+        "sourcePage": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["New", "Contacted", "Resolved", "Archived"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerName", "phone", "productOrCategory", "message", "status", "createdAt", "updatedAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized administrator document.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 140 },
+        "role": { "type": "string", "enum": ["admin"] },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role", "addedAt"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Publicly readable product catalogue, writable only by verified admins."
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Publicly readable collection categories, writable only by verified admins."
+    },
+    "/gallery/{itemId}": {
+      "schema": { "$ref": "#/entities/GalleryItem" },
+      "description": "Publicly readable fashion gallery items, writable only by verified admins."
+    },
+    "/siteSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/SiteSettings" },
+      "description": "Storefront configuration document, publicly readable by ID, writable only by verified admins."
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Verified customer reviews; only published reviews are readable publicly."
+    },
+    "/enquiries/{enquiryId}": {
+      "schema": { "$ref": "#/entities/Enquiry" },
+      "description": "Customer enquiries containing PII; writable on create by visitors with strict validation, readable/updatable/deletable strictly by verified admins."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Admin access registry, readable and writable only by verified admins."
+    }
+  }
+}
