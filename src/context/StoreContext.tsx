@@ -82,7 +82,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [wishlistIds, setWishlistIds] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(WISHLIST_STORAGE_KEY);
-      return saved ? (JSON.parse(saved) as string[]) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed)
+        ? parsed.filter((id): id is string => typeof id === 'string').slice(0, 100)
+        : [];
     } catch {
       return [];
     }
@@ -132,7 +136,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
+      if (currentUser && currentUser.emailVerified) {
         const adminStatus = await checkIsAdmin(currentUser.uid, currentUser.email);
         setIsAdmin(adminStatus);
       } else {

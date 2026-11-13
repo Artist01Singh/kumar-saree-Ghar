@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Globe, Mail, MapPin, Phone, X } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { sanitizeExternalUrl } from '../data/seedData';
 
 export function Footer() {
   const { settings } = useStore();
@@ -89,7 +90,7 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href={settings.googleReviewsUrl || 'https://www.google.com/maps'}
+                  href={sanitizeExternalUrl(settings.googleReviewsUrl, 'https://www.google.com/maps')}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-[#C6A15B] transition-colors"
@@ -140,26 +141,27 @@ export function Footer() {
                   {settings.email}
                 </a>
               </li>
-              {settings.websiteUrl && (
+              {sanitizeExternalUrl(settings.websiteUrl, '') && (
                 <li className="flex items-center gap-2.5">
                   <Globe className="w-4 h-4 text-[#C6A15B] shrink-0" />
                   <a
-                    href={settings.websiteUrl}
+                    href={sanitizeExternalUrl(settings.websiteUrl, '')}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hover:text-[#C6A15B] transition-colors"
                   >
-                    {settings.websiteUrl.replace(/^https?:\/\//, '')}
+                    {sanitizeExternalUrl(settings.websiteUrl, '').replace(/^https?:\/\//, '')}
                   </a>
                 </li>
               )}
             </ul>
 
-            {(settings.instagramUrl || settings.facebookUrl) && (
+            {(sanitizeExternalUrl(settings.instagramUrl, '') ||
+              sanitizeExternalUrl(settings.facebookUrl, '')) && (
               <div className="flex items-center gap-4 mt-5 text-xs text-[#C6A15B]">
-                {settings.instagramUrl && (
+                {sanitizeExternalUrl(settings.instagramUrl, '') && (
                   <a
-                    href={settings.instagramUrl}
+                    href={sanitizeExternalUrl(settings.instagramUrl, '')}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hover:underline"
@@ -167,9 +169,9 @@ export function Footer() {
                     Instagram
                   </a>
                 )}
-                {settings.facebookUrl && (
+                {sanitizeExternalUrl(settings.facebookUrl, '') && (
                   <a
-                    href={settings.facebookUrl}
+                    href={sanitizeExternalUrl(settings.facebookUrl, '')}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hover:underline"

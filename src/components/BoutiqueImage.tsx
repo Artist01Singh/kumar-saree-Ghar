@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
+import { resolveBoutiqueImageUrl } from '../data/seedData';
 
 interface BoutiqueImageProps {
   src?: string;
@@ -10,8 +11,13 @@ interface BoutiqueImageProps {
 
 export function BoutiqueImage({ src, alt, className = '', eager = false }: BoutiqueImageProps) {
   const [failed, setFailed] = useState(false);
+  const resolvedSrc = resolveBoutiqueImageUrl(src);
 
-  if (!src || failed) {
+  useEffect(() => {
+    setFailed(false);
+  }, [resolvedSrc]);
+
+  if (!resolvedSrc || failed) {
     return (
       <div
         role="img"
@@ -28,7 +34,7 @@ export function BoutiqueImage({ src, alt, className = '', eager = false }: Bouti
 
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       loading={eager ? 'eager' : 'lazy'}
       referrerPolicy="no-referrer"

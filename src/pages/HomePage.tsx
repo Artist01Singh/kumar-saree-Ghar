@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useStore } from '../context/StoreContext';
-import { BOUTIQUE_ASSETS } from '../data/seedData';
+import { BOUTIQUE_ASSETS, sanitizeExternalUrl } from '../data/seedData';
 import { BoutiqueImage } from '../components/BoutiqueImage';
 import { ProductCard } from '../components/ProductCard';
 import { StoreMap } from '../components/StoreMap';
@@ -445,12 +445,12 @@ export function HomePage() {
             </h2>
           </div>
           <a
-            href={
-              settings.googleReviewsUrl ||
+            href={sanitizeExternalUrl(
+              settings.googleReviewsUrl,
               `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                 `${settings.businessName} ${settings.address}`
               )}`
-            }
+            )}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold border border-[#292326]/20 text-[#292326] hover:border-[#651B32] hover:text-[#651B32] transition-colors w-fit"
@@ -472,12 +472,12 @@ export function HomePage() {
               visiting our Laxmi Nagar store.
             </p>
             <a
-              href={
-                settings.googleReviewsUrl ||
+              href={sanitizeExternalUrl(
+                settings.googleReviewsUrl,
                 `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                   `${settings.businessName} ${settings.address}`
                 )}`
-              }
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-6 py-3 text-xs font-semibold bg-[#651B32] text-white hover:bg-[#872D49] transition-colors"

@@ -11,10 +11,18 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 const firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
 let firebaseApiKey = '';
+let firebaseProjectId = '';
+let firestoreDatabaseId = '(default)';
 try {
   const raw = fs.readFileSync(firebaseConfigPath, 'utf-8');
-  const parsed = JSON.parse(raw) as { apiKey?: string };
+  const parsed = JSON.parse(raw) as {
+    apiKey?: string;
+    projectId?: string;
+    firestoreDatabaseId?: string;
+  };
   firebaseApiKey = parsed.apiKey || '';
+  firebaseProjectId = parsed.projectId || '';
+  firestoreDatabaseId = parsed.firestoreDatabaseId || '(default)';
 } catch {
   firebaseApiKey = '';
 }
@@ -24,7 +32,49 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-async function verifyFirebaseIdToken(idToken: string): Promise<{ uid: string; email?: string; emailVerified?: boolean } | null> {
+const uploadRateBucket = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxRequests = 40;
+  const entry = uploadRateBucket.get(ip);
+  if (!entry || now > entry.resetAt) {
+    uploadRateBucket.set(ip, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= maxRequests) {
+    return false;
+  }
+  entry.count += 1;
+  return true;
+}
+
+function validateImageMagicBytes(buffer: Buffer, mime: string): boolean {
+  if (buffer.byteLength < 12) return false;
+  if (mime === 'image/jpeg' || mime === 'image/jpg') {
+    return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  }
+  if (mime === 'image/png') {
+    return (
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47
+    );
+  }
+  if (mime === 'image/webp') {
+    return (
+      buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+    );
+  }
+  return false;
+}
+
+async function verifyAdminToken(
+  idToken: string
+): Promise<{ uid: string; email?: string; emailVerified?: boolean } | null> {
   if (!firebaseApiKey || !idToken) return null;
   try {
     const response = await fetch(
@@ -40,12 +90,29 @@ async function verifyFirebaseIdToken(idToken: string): Promise<{ uid: string; em
       users?: Array<{ localId: string; email?: string; emailVerified?: boolean }>;
     };
     const user = data.users?.[0];
-    if (!user) return null;
-    return {
-      uid: user.localId,
-      email: user.email,
-      emailVerified: user.emailVerified,
-    };
+    if (!user || !user.emailVerified) return null;
+
+    if (user.email === 'hraj83753@gmail.com') {
+      return { uid: user.localId, email: user.email, emailVerified: user.emailVerified };
+    }
+
+    if (firebaseProjectId) {
+      const adminDocRes = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
+          firebaseProjectId
+        )}/databases/${encodeURIComponent(firestoreDatabaseId)}/documents/admins/${encodeURIComponent(
+          user.localId
+        )}`,
+        {
+          headers: { Authorization: `Bearer ${idToken}` },
+        }
+      );
+      if (adminDocRes.ok) {
+        return { uid: user.localId, email: user.email, emailVerified: user.emailVerified };
+      }
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -53,20 +120,42 @@ async function verifyFirebaseIdToken(idToken: string): Promise<{ uid: string; em
 
 async function startServer() {
   const app = express();
+  app.disable('x-powered-by');
   app.use(express.json({ limit: '8mb' }));
 
-  app.use('/uploads', express.static(uploadsDir, { maxAge: '7d' }));
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
+    next();
+  });
+
+  app.use(
+    '/uploads',
+    (_req, res, next) => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      next();
+    },
+    express.static(uploadsDir, { maxAge: '7d' })
+  );
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
 
   app.post('/api/upload', async (req, res) => {
+    const clientIp = req.ip || 'unknown';
+    if (!checkRateLimit(clientIp)) {
+      res.status(429).json({ error: 'Too many upload requests. Please try again later.' });
+      return;
+    }
+
     const authHeader = req.headers.authorization || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-    const verifiedUser = await verifyFirebaseIdToken(token);
-    if (!verifiedUser || !verifiedUser.emailVerified) {
-      res.status(401).json({ error: 'Unauthorized: Valid verified admin session required.' });
+    const adminUser = await verifyAdminToken(token);
+    if (!adminUser) {
+      res.status(401).json({ error: 'Unauthorized: Verified administrator access required.' });
       return;
     }
 
@@ -90,12 +179,19 @@ async function startServer() {
       return;
     }
 
+    if (!validateImageMagicBytes(buffer, mime)) {
+      res.status(400).json({ error: 'Invalid or corrupted image file content.' });
+      return;
+    }
+
     const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
-    const safeStem = filename
-      .replace(/\.[^/.]+$/, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9-_]+/g, '-')
-      .slice(0, 40) || 'boutique-piece';
+    const safeStem =
+      path
+        .basename(filename)
+        .replace(/\.[^/.]+$/, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9-_]+/g, '-')
+        .slice(0, 40) || 'boutique-piece';
     const uniqueName = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeStem}.${ext}`;
     const destPath = path.join(uploadsDir, uniqueName);
     fs.writeFileSync(destPath, buffer);
@@ -131,7 +227,9 @@ async function startServer() {
     const urlsXml = routes
       .map(
         (route) =>
-          `  <url>\n    <loc>${origin}${route}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>${route === '/' ? '1.0' : '0.8'}</priority>\n  </url>`
+          `  <url>\n    <loc>${origin}${route}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>${
+            route === '/' ? '1.0' : '0.8'
+          }</priority>\n  </url>`
       )
       .join('\n');
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urlsXml}\n</urlset>`;

@@ -30,12 +30,14 @@ import {
 } from '../types/store';
 
 export function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 140) || `item-${Date.now()}`;
+  return (
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 140) || `item-${Date.now()}`
+  );
 }
 
 export async function fetchProducts(): Promise<Product[]> {
@@ -198,7 +200,9 @@ export async function saveProduct(
     color: (product.color || '').trim().slice(0, 100),
     sizes: cleanSizes,
     price: product.priceVerified && typeof product.price === 'number' ? product.price : null,
-    priceVerified: Boolean(product.priceVerified && typeof product.price === 'number' && product.price > 0),
+    priceVerified: Boolean(
+      product.priceVerified && typeof product.price === 'number' && product.price > 0
+    ),
     availability: product.availability,
     images: cleanImages,
     featured: Boolean(product.featured),
@@ -437,18 +441,49 @@ export async function seedBoutiqueDatabase(): Promise<void> {
   }
 }
 
+async function compressImageFile(file: File): Promise<string> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('Invalid image file.'));
+      el.src = objectUrl;
+    });
+
+    const maxDim = 1400;
+    let { width, height } = img;
+    if (width > maxDim || height > maxDim) {
+      if (width > height) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
+      }
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Image processing unavailable.');
+    }
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', 0.84);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export async function uploadBoutiqueImage(file: File): Promise<string> {
   const currentUser = auth.currentUser;
   if (!currentUser) {
     throw new Error('You must be signed in as admin to upload images.');
   }
   const idToken = await currentUser.getIdToken();
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('Failed to read selected image file.'));
-    reader.readAsDataURL(file);
-  });
+  const dataUrl = await compressImageFile(file);
 
   const response = await fetch('/api/upload', {
     method: 'POST',
@@ -464,9 +499,38 @@ export async function uploadBoutiqueImage(file: File): Promise<string> {
 
   if (!response.ok) {
     const errBody = (await response.json().catch(() => ({}))) as { error?: string };
-    throw new Error(errBody.error || 'Image upload failed.');
+    throw new Error(
+      errBody.error ||
+        'Image upload endpoint unavailable on this host. Please paste a hosted HTTPS image URL instead.'
+    );
   }
 
   const data = (await response.json()) as { url: string };
   return data.url;
+}
+
+export async function exportBoutiqueBackup(): Promise<string> {
+  const [products, categories, gallery, settings, reviews, enquiries] = await Promise.all([
+    fetchProducts(),
+    fetchCategories(),
+    fetchGallery(),
+    fetchSiteSettings(),
+    fetchAllReviewsAdmin(),
+    fetchAllEnquiriesAdmin(),
+  ]);
+
+  return JSON.stringify(
+    {
+      exportedAt: new Date().toISOString(),
+      business: 'Kumar Saree Ghar Pvt. Ltd.',
+      settings,
+      categories,
+      products,
+      gallery,
+      reviews,
+      enquiries,
+    },
+    null,
+    2
+  );
 }

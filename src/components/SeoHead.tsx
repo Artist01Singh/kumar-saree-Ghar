@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Product, SiteSettings } from '../types/store';
+import { resolveBoutiqueImageUrl } from '../data/seedData';
 
 interface SeoHeadProps {
   title: string;
@@ -30,6 +31,19 @@ export function SeoHead({ title, description, settings, product }: SeoHeadProps)
 
     const canonicalUrl = `${window.location.origin}${window.location.pathname}`;
     ensureMeta('property', 'og:url', canonicalUrl);
+
+    const ogImg = product?.images[0]
+      ? resolveBoutiqueImageUrl(product.images[0])
+      : settings?.heroImage
+      ? resolveBoutiqueImageUrl(settings.heroImage)
+      : '';
+    if (ogImg) {
+      const fullOgImg = ogImg.startsWith('http') || ogImg.startsWith('data:')
+        ? ogImg
+        : `${window.location.origin}${ogImg}`;
+      ensureMeta('property', 'og:image', fullOgImg);
+      ensureMeta('name', 'twitter:image', fullOgImg);
+    }
 
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!canonical) {
@@ -75,9 +89,12 @@ export function SeoHead({ title, description, settings, product }: SeoHeadProps)
         name: product.title,
         description: product.description,
         category: product.category,
-        image: product.images.map((img) =>
-          img.startsWith('http') ? img : `${window.location.origin}${img}`
-        ),
+        image: product.images
+          .map((img) => resolveBoutiqueImageUrl(img))
+          .filter(Boolean)
+          .map((img) =>
+            img.startsWith('http') || img.startsWith('data:') ? img : `${window.location.origin}${img}`
+          ),
         brand: {
           '@type': 'Brand',
           name: 'Kumar Saree Ghar',

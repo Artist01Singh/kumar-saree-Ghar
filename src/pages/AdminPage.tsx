@@ -3,7 +3,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   Database,
+  Download,
   Edit3,
+  Globe,
   Image as ImageIcon,
   Loader2,
   LogOut,
@@ -16,6 +18,7 @@ import { useStore } from '../context/StoreContext';
 import { ALL_CATALOGUE_CATEGORIES, BOUTIQUE_ASSETS } from '../data/seedData';
 import {
   deleteEnquiry,
+  exportBoutiqueBackup,
   fetchAllEnquiriesAdmin,
   fetchAllReviewsAdmin,
   removeCategory,
@@ -89,6 +92,8 @@ export function AdminPage() {
     null
   );
   const [seeding, setSeeding] = useState(false);
+  const [exportingBackup, setExportingBackup] = useState(false);
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
 
   // Product Form State
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -194,6 +199,27 @@ export function AdminPage() {
       notify('error', err instanceof Error ? err.message : 'Failed to initialize database.');
     } finally {
       setSeeding(false);
+    }
+  };
+
+  const handleExportBackup = async () => {
+    setExportingBackup(true);
+    try {
+      const json = await exportBoutiqueBackup();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `kumar-saree-ghar-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      notify('success', 'Full boutique JSON backup downloaded.');
+    } catch (err) {
+      notify('error', err instanceof Error ? err.message : 'Failed to export backup.');
+    } finally {
+      setExportingBackup(false);
     }
   };
 
@@ -305,6 +331,7 @@ export function AdminPage() {
   const handleDeleteProduct = async (id: string) => {
     try {
       await removeProduct(id);
+      setConfirmDeleteKey(null);
       await refreshStoreData();
       notify('success', 'Product removed.');
     } catch (err) {
@@ -514,6 +541,19 @@ export function AdminPage() {
           )}
           <button
             type="button"
+            disabled={exportingBackup}
+            onClick={handleExportBackup}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold bg-white border border-[#292326]/20 text-[#292326] hover:border-[#651B32] cursor-pointer"
+          >
+            {exportingBackup ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5" />
+            )}
+            <span>Export Backup (JSON)</span>
+          </button>
+          <button
+            type="button"
             onClick={() => signOutAdmin()}
             className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border border-[#292326]/20 text-[#292326] hover:border-[#651B32] cursor-pointer"
           >
@@ -566,7 +606,10 @@ export function AdminPage() {
           <button
             key={tabKey}
             type="button"
-            onClick={() => setActiveTab(tabKey)}
+            onClick={() => {
+              setActiveTab(tabKey);
+              setConfirmDeleteKey(null);
+            }}
             className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
               activeTab === tabKey
                 ? 'bg-[#651B32] text-white'
@@ -642,13 +685,44 @@ export function AdminPage() {
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setActiveTab('settings')}
-              className="mt-5 px-5 py-2.5 text-xs font-semibold bg-[#651B32] text-white hover:bg-[#872D49] cursor-pointer"
-            >
-              Update Verification Flags & Content
-            </button>
+            <div className="flex flex-wrap items-center gap-3 mt-5">
+              <button
+                type="button"
+                onClick={() => setActiveTab('settings')}
+                className="px-5 py-2.5 text-xs font-semibold bg-[#651B32] text-white hover:bg-[#872D49] cursor-pointer"
+              >
+                Update Verification Flags & Content
+              </button>
+              <button
+                type="button"
+                disabled={exportingBackup}
+                onClick={handleExportBackup}
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold border border-[#292326]/20 text-[#292326] hover:border-[#651B32] cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Full Data Backup</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#292326]/10 p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Globe className="w-4 h-4 text-[#651B32]" />
+              <h2 className="font-display text-2xl font-semibold text-[#292326]">
+                Cross-Domain Deployment & Data Safety
+              </h2>
+            </div>
+            <ul className="space-y-2 text-sm text-[#81747A] list-disc pl-5">
+              <li>
+                Built-in boutique images are compiled into production assets so they render reliably across any domain or CDN.
+              </li>
+              <li>
+                If you deploy to a custom domain (such as <span className="font-medium text-[#292326]">www.kumarsarees.com</span>), add that domain in Firebase Console &rarr; Authentication &rarr; Settings &rarr; Authorized domains and update your Google Maps API key HTTP referrers.
+              </li>
+              <li>
+                Files uploaded via the server are stored under <code className="text-xs bg-[#FAF6EF] px-1.5 py-0.5">/uploads/</code> on this server; if migrating to a static-only host, host custom photos on HTTPS storage (e.g. Firebase Storage) or download a JSON backup first.
+              </li>
+            </ul>
           </div>
         </div>
       )}
@@ -895,14 +969,33 @@ export function AdminPage() {
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteProduct(p.id)}
-                    aria-label={`Delete ${p.title}`}
-                    className="w-9 h-9 flex items-center justify-center border border-[#292326]/15 text-[#651B32] hover:bg-[#651B32]/10 cursor-pointer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {confirmDeleteKey === `prod:${p.id}` ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProduct(p.id)}
+                        className="px-2.5 py-1.5 text-xs font-semibold bg-[#651B32] text-white cursor-pointer"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteKey(null)}
+                        className="px-2 py-1.5 text-xs border border-[#292326]/20 text-[#292326] cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteKey(`prod:${p.id}`)}
+                      aria-label={`Delete ${p.title}`}
+                      className="w-9 h-9 flex items-center justify-center border border-[#292326]/15 text-[#651B32] hover:bg-[#651B32]/10 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -1004,17 +1097,42 @@ export function AdminPage() {
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await removeCategory(c.id);
-                      await refreshStoreData();
-                      notify('success', 'Category deleted.');
-                    }}
-                    className="w-9 h-9 flex items-center justify-center border border-[#292326]/15 text-[#651B32]"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {confirmDeleteKey === `cat:${c.id}` ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await removeCategory(c.id);
+                            setConfirmDeleteKey(null);
+                            await refreshStoreData();
+                            notify('success', 'Category deleted.');
+                          } catch (err) {
+                            notify('error', err instanceof Error ? err.message : 'Failed to delete category.');
+                          }
+                        }}
+                        className="px-2.5 py-1.5 text-xs font-semibold bg-[#651B32] text-white cursor-pointer"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteKey(null)}
+                        className="px-2 py-1.5 text-xs border border-[#292326]/20 text-[#292326] cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteKey(`cat:${c.id}`)}
+                      aria-label={`Delete ${c.name}`}
+                      className="w-9 h-9 flex items-center justify-center border border-[#292326]/15 text-[#651B32] cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -1090,17 +1208,42 @@ export function AdminPage() {
                         <option value="Resolved">Resolved</option>
                         <option value="Archived">Archived</option>
                       </select>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          await deleteEnquiry(enq.id);
-                          await loadProtectedAdminData();
-                          notify('success', 'Enquiry deleted.');
-                        }}
-                        className="w-8 h-8 flex items-center justify-center border border-[#292326]/15 text-[#651B32]"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {confirmDeleteKey === `enq:${enq.id}` ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await deleteEnquiry(enq.id);
+                                setConfirmDeleteKey(null);
+                                await loadProtectedAdminData();
+                                notify('success', 'Enquiry deleted.');
+                              } catch (err) {
+                                notify('error', err instanceof Error ? err.message : 'Failed to delete enquiry.');
+                              }
+                            }}
+                            className="px-2.5 py-1 text-xs font-semibold bg-[#651B32] text-white cursor-pointer"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteKey(null)}
+                            className="px-2 py-1 text-xs border border-[#292326]/20 text-[#292326] cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteKey(`enq:${enq.id}`)}
+                          aria-label={`Delete enquiry from ${enq.customerName}`}
+                          className="w-8 h-8 flex items-center justify-center border border-[#292326]/15 text-[#651B32] cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                   <p className="text-sm text-[#292326]/85 bg-[#FAF6EF] p-3 border border-[#292326]/6">
@@ -1212,17 +1355,42 @@ export function AdminPage() {
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await removeGalleryItem(g.id);
-                        await refreshStoreData();
-                        notify('success', 'Gallery photo deleted.');
-                      }}
-                      className="w-8 h-8 flex items-center justify-center border border-[#292326]/15 text-[#651B32]"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {confirmDeleteKey === `gal:${g.id}` ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await removeGalleryItem(g.id);
+                              setConfirmDeleteKey(null);
+                              await refreshStoreData();
+                              notify('success', 'Gallery photo deleted.');
+                            } catch (err) {
+                              notify('error', err instanceof Error ? err.message : 'Failed to delete photo.');
+                            }
+                          }}
+                          className="px-2 py-1 text-[11px] font-semibold bg-[#651B32] text-white cursor-pointer"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteKey(null)}
+                          className="px-2 py-1 text-[11px] border border-[#292326]/20 text-[#292326] cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteKey(`gal:${g.id}`)}
+                        aria-label={`Delete ${g.title}`}
+                        className="w-8 h-8 flex items-center justify-center border border-[#292326]/15 text-[#651B32] cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1328,17 +1496,42 @@ export function AdminPage() {
                     <p className="text-xs text-[#81747A] mb-2">{r.verifiedSource}</p>
                     <p className="text-sm text-[#292326]/85">"{r.comment}"</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await removeReview(r.id);
-                      await Promise.all([loadProtectedAdminData(), refreshStoreData()]);
-                      notify('success', 'Review removed.');
-                    }}
-                    className="w-9 h-9 flex items-center justify-center border border-[#292326]/15 text-[#651B32] shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {confirmDeleteKey === `rev:${r.id}` ? (
+                    <div className="flex items-center gap-1 shrink-0 self-start">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await removeReview(r.id);
+                            setConfirmDeleteKey(null);
+                            await Promise.all([loadProtectedAdminData(), refreshStoreData()]);
+                            notify('success', 'Review removed.');
+                          } catch (err) {
+                            notify('error', err instanceof Error ? err.message : 'Failed to delete review.');
+                          }
+                        }}
+                        className="px-2.5 py-1.5 text-xs font-semibold bg-[#651B32] text-white cursor-pointer"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteKey(null)}
+                        className="px-2 py-1.5 text-xs border border-[#292326]/20 text-[#292326] cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteKey(`rev:${r.id}`)}
+                      aria-label={`Delete review by ${r.reviewerName}`}
+                      className="w-9 h-9 flex items-center justify-center border border-[#292326]/15 text-[#651B32] shrink-0 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -1377,24 +1570,56 @@ export function AdminPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1">Hero Banner Image URL</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium">Hero Banner Image URL</label>
+                  <label className="text-xs font-semibold text-[#651B32] cursor-pointer hover:underline">
+                    Upload Image
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      disabled={uploadingImage}
+                      onChange={(e) =>
+                        handleImageFileUpload(e, (url) =>
+                          setSettingsForm((prev) => ({ ...prev, heroImage: url }))
+                        )
+                      }
+                    />
+                  </label>
+                </div>
                 <select
-                  value={settingsForm.heroImage || ''}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, heroImage: e.target.value })}
+                  value={
+                    PRESET_IMAGE_OPTIONS.some((o) => o.url === settingsForm.heroImage)
+                      ? settingsForm.heroImage
+                      : ''
+                  }
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSettingsForm({ ...settingsForm, heroImage: e.target.value });
+                    }
+                  }}
                   className="w-full px-3 py-2 text-sm border border-[#292326]/20 bg-white mb-2"
                 >
+                  <option value="">Choose bundled preset or enter custom URL below...</option>
                   {PRESET_IMAGE_OPTIONS.map((opt) => (
                     <option key={opt.url} value={opt.url}>
                       {opt.label}
                     </option>
                   ))}
                 </select>
-                <input
-                  type="text"
-                  value={settingsForm.heroImage || ''}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, heroImage: e.target.value })}
-                  className="w-full px-3 py-2 text-xs border border-[#292326]/20"
-                />
+                <div className="flex items-center gap-3">
+                  <BoutiqueImage
+                    src={settingsForm.heroImage || BOUTIQUE_ASSETS.heroBridal}
+                    alt="Hero Banner Preview"
+                    className="w-20 h-14 object-cover border border-[#292326]/15 shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={settingsForm.heroImage || ''}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, heroImage: e.target.value })}
+                    className="w-full px-3 py-2 text-xs border border-[#292326]/20 font-mono"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
@@ -1410,15 +1635,38 @@ export function AdminPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1">Bridal Banner Image URL</label>
-                  <input
-                    type="text"
-                    value={settingsForm.bridalBannerImage || ''}
-                    onChange={(e) =>
-                      setSettingsForm({ ...settingsForm, bridalBannerImage: e.target.value })
-                    }
-                    className="w-full px-3 py-2 text-xs border border-[#292326]/20"
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium">Bridal Banner Image URL</label>
+                    <label className="text-xs font-semibold text-[#651B32] cursor-pointer hover:underline">
+                      Upload Image
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        disabled={uploadingImage}
+                        onChange={(e) =>
+                          handleImageFileUpload(e, (url) =>
+                            setSettingsForm((prev) => ({ ...prev, bridalBannerImage: url }))
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <BoutiqueImage
+                      src={settingsForm.bridalBannerImage || BOUTIQUE_ASSETS.bridalLehengas}
+                      alt="Bridal Banner Preview"
+                      className="w-12 h-10 object-cover border border-[#292326]/15 shrink-0"
+                    />
+                    <input
+                      type="text"
+                      value={settingsForm.bridalBannerImage || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, bridalBannerImage: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-xs border border-[#292326]/20 font-mono"
+                    />
+                  </div>
                 </div>
               </div>
               <div>

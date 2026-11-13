@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock, Globe, Mail, MapPin, MessageCircle, Navigation, Phone } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { sanitizeExternalUrl } from '../data/seedData';
 import { EnquiryForm } from '../components/EnquiryForm';
 import { StoreMap } from '../components/StoreMap';
 import { SeoHead } from '../components/SeoHead';
@@ -95,18 +96,18 @@ export function ContactPage() {
                 </div>
               </div>
 
-              {settings.websiteUrl && (
+              {sanitizeExternalUrl(settings.websiteUrl, '') && (
                 <div className="flex items-start gap-3">
                   <Globe className="w-5 h-5 text-[#651B32] shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold text-[#292326]">Website</p>
                     <a
-                      href={settings.websiteUrl}
+                      href={sanitizeExternalUrl(settings.websiteUrl, '')}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[#81747A] hover:text-[#651B32] block mt-0.5"
                     >
-                      {settings.websiteUrl}
+                      {sanitizeExternalUrl(settings.websiteUrl, '')}
                     </a>
                   </div>
                 </div>

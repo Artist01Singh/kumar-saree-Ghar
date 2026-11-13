@@ -9,6 +9,19 @@ service cloud.firestore {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isSafeUrlOrPath(val) {
+      return val is string && val.size() >= 1 && val.size() <= 600 && (
+        val.matches('^https://.*') ||
+        val.matches('^http://.*') ||
+        val.matches('^/.*') ||
+        val.matches('^data:image/(jpeg|jpg|png|webp);base64,.*')
+      );
+    }
+
+    function isSafeOptionalUrl(val) {
+      return val is string && (val.size() == 0 || isSafeUrlOrPath(val));
+    }
+
     function incoming() {
       return request.resource.data;
     }
@@ -54,7 +67,7 @@ service cloud.firestore {
       data.priceVerified is bool &&
       data.availability in ['In Store', 'Made to Order', 'Enquire for Availability', 'Out of Stock'] &&
       data.images is list && data.images.size() >= 1 && data.images.size() <= 8 &&
-      data.images[0] is string && data.images[0].size() <= 600 &&
+      isSafeUrlOrPath(data.images[0]) &&
       data.featured is bool &&
       data.displayOrder is number && data.displayOrder >= 0 && data.displayOrder <= 10000 &&
       data.createdAt is timestamp &&
@@ -71,7 +84,7 @@ service cloud.firestore {
       data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
       data.slug is string && data.slug.size() >= 2 && data.slug.size() <= 80 && data.slug.matches('^[a-z0-9-]+$') &&
       data.description is string && data.description.size() <= 600 &&
-      data.coverImage is string && data.coverImage.size() <= 600 &&
+      isSafeUrlOrPath(data.coverImage) &&
       data.featured is bool &&
       data.displayOrder is number && data.displayOrder >= 0 && data.displayOrder <= 1000 &&
       data.createdAt is timestamp &&
@@ -87,7 +100,7 @@ service cloud.firestore {
       ]) &&
       data.title is string && data.title.size() >= 2 && data.title.size() <= 160 &&
       data.category is string && data.category.size() <= 80 &&
-      data.imageUrl is string && data.imageUrl.size() >= 1 && data.imageUrl.size() <= 600 &&
+      isSafeUrlOrPath(data.imageUrl) &&
       data.caption is string && data.caption.size() <= 400 &&
       data.aspect in ['portrait', 'landscape', 'square'] &&
       data.displayOrder is number && data.displayOrder >= 0 && data.displayOrder <= 1000 &&
@@ -113,10 +126,10 @@ service cloud.firestore {
       (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 240)) &&
       data.heroHeadline is string && data.heroHeadline.size() >= 2 && data.heroHeadline.size() <= 160 &&
       (!('heroSubtext' in data) || (data.heroSubtext is string && data.heroSubtext.size() <= 500)) &&
-      (!('heroImage' in data) || (data.heroImage is string && data.heroImage.size() <= 600)) &&
+      (!('heroImage' in data) || isSafeOptionalUrl(data.heroImage)) &&
       (!('bridalBannerTitle' in data) || (data.bridalBannerTitle is string && data.bridalBannerTitle.size() <= 160)) &&
       (!('bridalBannerText' in data) || (data.bridalBannerText is string && data.bridalBannerText.size() <= 600)) &&
-      (!('bridalBannerImage' in data) || (data.bridalBannerImage is string && data.bridalBannerImage.size() <= 600)) &&
+      (!('bridalBannerImage' in data) || isSafeOptionalUrl(data.bridalBannerImage)) &&
       data.address is string && data.address.size() <= 300 &&
       data.primaryPhone is string && data.primaryPhone.size() <= 30 &&
       (!('altPhone' in data) || (data.altPhone is string && data.altPhone.size() <= 40)) &&
@@ -124,14 +137,14 @@ service cloud.firestore {
       data.whatsappNumber is string && data.whatsappNumber.size() <= 30 &&
       data.whatsappConfirmed is bool &&
       data.email is string && data.email.size() <= 120 &&
-      (!('websiteUrl' in data) || (data.websiteUrl is string && data.websiteUrl.size() <= 200)) &&
+      (!('websiteUrl' in data) || isSafeOptionalUrl(data.websiteUrl)) &&
       data.openingHours is string && data.openingHours.size() <= 200 &&
       data.openingHoursVerified is bool &&
       (!('establishmentYear' in data) || (data.establishmentYear is string && data.establishmentYear.size() <= 20)) &&
       data.establishmentYearVerified is bool &&
-      (!('googleReviewsUrl' in data) || (data.googleReviewsUrl is string && data.googleReviewsUrl.size() <= 400)) &&
-      (!('instagramUrl' in data) || (data.instagramUrl is string && data.instagramUrl.size() <= 400)) &&
-      (!('facebookUrl' in data) || (data.facebookUrl is string && data.facebookUrl.size() <= 400)) &&
+      (!('googleReviewsUrl' in data) || isSafeOptionalUrl(data.googleReviewsUrl)) &&
+      (!('instagramUrl' in data) || isSafeOptionalUrl(data.instagramUrl)) &&
+      (!('facebookUrl' in data) || isSafeOptionalUrl(data.facebookUrl)) &&
       (!('policiesNote' in data) || (data.policiesNote is string && data.policiesNote.size() <= 600)) &&
       data.updatedAt is timestamp;
     }
@@ -161,6 +174,7 @@ service cloud.firestore {
       ]) &&
       data.customerName is string && data.customerName.size() >= 2 && data.customerName.size() <= 120 &&
       data.phone is string && data.phone.size() >= 7 && data.phone.size() <= 25 &&
+      data.phone.matches('^[0-9+\\-\\s()]+$') &&
       (!('email' in data) || (data.email is string && data.email.size() <= 140)) &&
       data.productOrCategory is string && data.productOrCategory.size() >= 1 && data.productOrCategory.size() <= 180 &&
       data.message is string && data.message.size() >= 5 && data.message.size() <= 2000 &&

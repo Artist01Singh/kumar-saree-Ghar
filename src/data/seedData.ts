@@ -1,14 +1,78 @@
+import heroBridalImg from '../assets/images/hero_indian_bridal_1794511483037.jpg';
+import designerSareesImg from '../assets/images/collection_designer_sarees_1794511483257.jpg';
+import bridalLehengasImg from '../assets/images/collection_bridal_lehengas_1794511485737.jpg';
+import suitsKurtisImg from '../assets/images/collection_suits_kurtis_1794511487375.jpg';
+import indoWesternImg from '../assets/images/collection_indowestern_gowns_1794511485975.jpg';
+import boutiqueInteriorImg from '../assets/images/atelier_boutique_interior_1794511486371.jpg';
+import zariCraftImg from '../assets/images/craft_zari_embroidery_1794511487206.jpg';
 import { Category, GalleryItem, Product, SiteSettings } from '../types/store';
 
 export const BOUTIQUE_ASSETS = {
-  heroBridal: '/src/assets/images/hero_indian_bridal_1794511483037.jpg',
-  designerSarees: '/src/assets/images/collection_designer_sarees_1794511483257.jpg',
-  bridalLehengas: '/src/assets/images/collection_bridal_lehengas_1794511485737.jpg',
-  suitsKurtis: '/src/assets/images/collection_suits_kurtis_1794511487375.jpg',
-  indoWestern: '/src/assets/images/collection_indowestern_gowns_1794511485975.jpg',
-  boutiqueInterior: '/src/assets/images/atelier_boutique_interior_1794511486371.jpg',
-  zariCraft: '/src/assets/images/craft_zari_embroidery_1794511487206.jpg',
+  heroBridal: heroBridalImg,
+  designerSarees: designerSareesImg,
+  bridalLehengas: bridalLehengasImg,
+  suitsKurtis: suitsKurtisImg,
+  indoWestern: indoWesternImg,
+  boutiqueInterior: boutiqueInteriorImg,
+  zariCraft: zariCraftImg,
 };
+
+const LEGACY_ASSET_MAP: Record<string, string> = {
+  '/src/assets/images/hero_indian_bridal_1794511483037.jpg': heroBridalImg,
+  '/src/assets/images/collection_designer_sarees_1794511483257.jpg': designerSareesImg,
+  '/src/assets/images/collection_bridal_lehengas_1794511485737.jpg': bridalLehengasImg,
+  '/src/assets/images/collection_suits_kurtis_1794511487375.jpg': suitsKurtisImg,
+  '/src/assets/images/collection_indowestern_gowns_1794511485975.jpg': indoWesternImg,
+  '/src/assets/images/atelier_boutique_interior_1794511486371.jpg': boutiqueInteriorImg,
+  '/src/assets/images/craft_zari_embroidery_1794511487206.jpg': zariCraftImg,
+};
+
+export function resolveBoutiqueImageUrl(rawUrl?: string): string {
+  if (!rawUrl) return '';
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return '';
+
+  // Reject unsafe protocols
+  if (/^(javascript|vbscript|data:text\/html):/i.test(trimmed)) {
+    return '';
+  }
+
+  // Map any legacy unbundled /src/assets/images/... paths stored in Firestore to bundled assets
+  if (LEGACY_ASSET_MAP[trimmed]) {
+    return LEGACY_ASSET_MAP[trimmed];
+  }
+
+  // Normalize any full URL pointing to /src/assets/images/... or /uploads/... on another domain
+  try {
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      const parsed = new URL(trimmed);
+      if (LEGACY_ASSET_MAP[parsed.pathname]) {
+        return LEGACY_ASSET_MAP[parsed.pathname];
+      }
+      if (
+        parsed.pathname.startsWith('/uploads/') &&
+        (parsed.hostname === 'localhost' ||
+          parsed.hostname.endsWith('.run.app'))
+      ) {
+        return parsed.pathname;
+      }
+      return trimmed;
+    }
+  } catch {
+    return '';
+  }
+
+  return trimmed;
+}
+
+export function sanitizeExternalUrl(rawUrl?: string, fallback = '#'): string {
+  if (!rawUrl) return fallback;
+  const trimmed = rawUrl.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return fallback;
+}
 
 export const ALL_CATALOGUE_CATEGORIES = [
   'Sarees',
